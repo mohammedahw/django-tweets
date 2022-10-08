@@ -1,6 +1,9 @@
 from ninja import Schema
 from datetime import datetime
 from uuid import UUID
+from . import user
+from typing import List
+from . import comments
 
 
 class TweetOut(Schema):
@@ -8,9 +11,9 @@ class TweetOut(Schema):
     content: str
     created_at: datetime
     likes: int
-    user_id: str
+    user: user.UserOut
+    comments: List[comments.CommentOut]
 
 
 class TweetIn(Schema):
     content: str
-    user_id: UUID
