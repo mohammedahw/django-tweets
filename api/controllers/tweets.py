@@ -1,31 +1,15 @@
-from ninja import NinjaAPI
-
-from . import models
-
-from django.conf import settings
-
-
-from .schemas import user, tweets
-
-from typing import List
-
-from uuid import UUID
-
+from api.auth import BearerAuth
 from ninja.pagination import paginate, LimitOffsetPagination
+from uuid import UUID
+from typing import List
+from api.schemas import user, tweets
+from ninja import Router
+from api import models
 
-from .auth import BearerAuth
-
-import jwt
-
-from ninja.errors import HttpError
-
-from django.contrib.auth.hashers import make_password, check_password
-
-
-controller = NinjaAPI()
+router = Router(tags=['tweets'])
 
 
-@controller.get("/tweets", response=List[tweets.TweetOut])
+@router.get("", response=List[tweets.TweetOut])
 @paginate(LimitOffsetPagination)
 def find_all(request):
 
@@ -33,14 +17,14 @@ def find_all(request):
     return tweets
 
 
-@controller.get("/tweets/{tweet_id}", response=tweets.TweetOut)
+@router.get("/{tweet_id}", response=tweets.TweetOut)
 def find_one(request, tweet_id: UUID):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
     return tweet
 
 
-@controller.post("/tweets", response=tweets.TweetOut, auth=BearerAuth())
+@router.post("", response=tweets.TweetOut, auth=BearerAuth())
 def create(request, payload: tweets.TweetIn):
 
     user = models.User.objects.get(id=str(request.auth['id']))
@@ -51,7 +35,7 @@ def create(request, payload: tweets.TweetIn):
     return tweet
 
 
-@controller.patch("/tweets/{tweet_id}", response=tweets.TweetOut, auth=BearerAuth())
+@router.patch("/{tweet_id}", response=tweets.TweetOut, auth=BearerAuth())
 def update(request, tweet_id: UUID, payload: tweets.TweetIn):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
@@ -65,7 +49,7 @@ def update(request, tweet_id: UUID, payload: tweets.TweetIn):
     return tweet
 
 
-@controller.delete("/tweets/{tweet_id}", auth=BearerAuth())
+@router.delete("/{tweet_id}", auth=BearerAuth())
 def delete(request, tweet_id: UUID):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
@@ -76,7 +60,7 @@ def delete(request, tweet_id: UUID):
     return {"message": "Tweet deleted successfully"}
 
 
-@controller.patch("/tweets/{tweet_id}/like", auth=BearerAuth(), response=tweets.TweetOut)
+@router.patch("/{tweet_id}/like", auth=BearerAuth(), response=tweets.TweetOut)
 def like(request, tweet_id: UUID):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
@@ -95,7 +79,7 @@ def like(request, tweet_id: UUID):
     return tweet
 
 
-@controller.patch("/tweets/{tweet_id}/unlike", auth=BearerAuth(), response=tweets.TweetOut)
+@router.patch("/{tweet_id}/unlike", auth=BearerAuth(), response=tweets.TweetOut)
 def unlike(request, tweet_id: UUID):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
@@ -112,7 +96,7 @@ def unlike(request, tweet_id: UUID):
     return tweet
 
 
-@controller.post("/tweets/{tweet_id}/comments", response=tweets.TweetOut, auth=BearerAuth())
+@router.post("/{tweet_id}/comments", response=tweets.TweetOut, auth=BearerAuth())
 def comment(request, tweet_id: UUID, payload: tweets.TweetIn):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
@@ -127,7 +111,7 @@ def comment(request, tweet_id: UUID, payload: tweets.TweetIn):
     return tweet
 
 
-@controller.get("/tweets/{tweet_id}/comments", response=List[tweets.TweetOut])
+@router.get("/{tweet_id}/comments", response=List[tweets.TweetOut])
 @paginate(LimitOffsetPagination)
 def get_comments(request, tweet_id: UUID):
 
@@ -137,7 +121,7 @@ def get_comments(request, tweet_id: UUID):
     return comments
 
 
-@controller.patch("/tweets/{tweet_id}/comments/{comment_id}", response=tweets.TweetOut, auth=BearerAuth())
+@router.patch("/{tweet_id}/comments/{comment_id}", response=tweets.TweetOut, auth=BearerAuth())
 def update_comment(request, tweet_id: UUID, comment_id: UUID, payload: tweets.TweetIn):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
@@ -155,7 +139,7 @@ def update_comment(request, tweet_id: UUID, comment_id: UUID, payload: tweets.Tw
     return tweet
 
 
-@controller.delete("/tweets/{tweet_id}/comments/{comment_id}", response=tweets.TweetOut, auth=BearerAuth())
+@router.delete("/{tweet_id}/comments/{comment_id}", response=tweets.TweetOut, auth=BearerAuth())
 def delete_comment(request, tweet_id: UUID, comment_id: UUID):
 
     tweet = models.Tweet.objects.get(id=tweet_id)
@@ -167,69 +151,3 @@ def delete_comment(request, tweet_id: UUID, comment_id: UUID):
 
     tweet.save()
     return tweet
-
-
-@controller.post("/users/login", response=user.LoginAndRegisterOut)
-def login(request, payload: user.UserLoginIn):
-
-    user = models.User.objects.get(
-
-        username=payload.username)
-
-    is_valid = check_password(payload.password, user.password)
-
-    if not is_valid:
-
-        raise HttpError(400, "invalid credentials")
-
-    token_payload = {"id": str(user.id)}
-
-    token = jwt.encode(token_payload, settings.SECRET_KEY,
-
-                       algorithm="HS256")
-
-    response = {"user": user, "token": token}
-
-    return response
-
-
-@controller.get("/users", response=List[user.UserOut])
-@paginate(LimitOffsetPagination)
-def find_all(request):
-
-    users = models.User.objects.all()
-    return users
-
-
-@controller.get("/users/{user_id}", response=user.UserOut)
-def find_one(request, user_id: UUID):
-
-    user = models.User.objects.get(id=user_id)
-    return user
-
-
-@controller.post("/users", response=user.LoginAndRegisterOut)
-def register(request, payload: user.UserRegisterIn):
-
-    payload.password = make_password(password=payload.password)
-
-    user = models.User.objects.create(**payload.dict())
-
-    token_payload = {"id": str(user.id)}
-
-    token = jwt.encode(token_payload, settings.SECRET_KEY,
-
-                       algorithm="HS256")
-
-    response = {"user": user, "token": token}
-    return response
-
-
-@controller.delete("/users/{user_id}", response=user.UserOut, auth=BearerAuth())
-def delete(request, user_id: UUID):
-
-    user = models.User.objects.get(id=user_id)
-    if not user.id == request.auth['id']:
-        raise HttpError(401, "Unauthorized")
-    user.delete()
-    return user
