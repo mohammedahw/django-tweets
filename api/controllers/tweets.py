@@ -4,6 +4,7 @@ from uuid import UUID
 from typing import List
 from api.schemas import user, tweets
 from ninja import Router
+from ninja.errors import HttpError
 from api import models
 
 router = Router(tags=['tweets'])

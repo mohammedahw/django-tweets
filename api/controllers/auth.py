@@ -1,7 +1,7 @@
 from ninja import Router
 from api import models
 from django.conf import settings
-from api.schemas import user
+from api.schemas import auth
 import jwt
 from ninja.errors import HttpError
 from django.contrib.auth.hashers import make_password, check_password
@@ -9,8 +9,8 @@ from django.contrib.auth.hashers import make_password, check_password
 router = Router(tags=['auth'])
 
 
-@router.post("/login", response=user.LoginAndRegisterOut)
-def login(request, payload: user.UserLoginIn):
+@router.post("/login", response=auth.AuthOut)
+def login(request, payload: auth.LoginIn):
     user = models.User.objects.get(username=payload.username)
     is_valid = check_password(payload.password, user.password)
 
@@ -23,8 +23,8 @@ def login(request, payload: user.UserLoginIn):
     return response
 
 
-@router.post("/register", response=user.LoginAndRegisterOut)
-def register(request, payload: user.UserRegisterIn):
+@router.post("/register", response=auth.AuthOut)
+def register(request, payload: auth.RegisterIn):
     payload.password = make_password(password=payload.password)
     user = models.User.objects.create(**payload.dict())
     token_payload = {"id": str(user.id)}
