@@ -1,2 +1,5 @@
 # django-tweets
-built using django, django-ninja api, PostgreSQL
+built using <br/>
+django <br/>
+django-ninja api <br/>
+PostgreSQL
